@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
@@ -34,8 +34,16 @@ class NotificationService {
       iOS: iosSettings,
     );
 
-    await _plugin.initialize(settings);
-    await _configureLocalTimeZone();
+    await _plugin.initialize(
+      settings: settings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        // Handle notification tap logic here
+      },
+    );
+
+    // Configure timezone in background to avoid blocking app startup.
+    _configureLocalTimeZone();
+
     _initialized = true;
   }
 
@@ -50,8 +58,11 @@ class NotificationService {
         >();
 
     final androidGranted = await androidImpl?.requestNotificationsPermission();
-    final iosGranted =
-        await iosImpl?.requestPermissions(alert: true, badge: true, sound: true);
+    final iosGranted = await iosImpl?.requestPermissions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
 
     return (androidGranted ?? true) && (iosGranted ?? true);
   }
@@ -76,17 +87,19 @@ class NotificationService {
       final verse = verses[random.nextInt(verses.length)];
       final scheduled = _nextMidday(now, i);
 
-      final ref =
-          '${verse['book_name']} ${verse['chapter']}:${verse['verse']}';
-      final text = (verse['text'] as String? ?? '').replaceAll('\n', ' ').trim();
+      final ref = '${verse['book_name']} ${verse['chapter']}:${verse['verse']}';
+      final text = (verse['text'] as String? ?? '')
+          .replaceAll('\n', ' ')
+          .trim();
       final body = text.length > 220 ? '${text.substring(0, 217)}...' : text;
 
+      // FIXED: Every single argument is now labeled (Named Parameters)
       await _plugin.zonedSchedule(
-        _baseNotificationId + i,
-        'Daily Verse - $ref',
-        body,
-        scheduled,
-        const NotificationDetails(
+        id: _baseNotificationId + i,
+        title: 'Daily Verse - $ref',
+        body: body,
+        scheduledDate: scheduled,
+        notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             _channelId,
             'Daily Verse Notifications',
@@ -96,24 +109,26 @@ class NotificationService {
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
     }
   }
 
   Future<void> cancelDailyVerseNotifications() async {
     for (var i = 0; i < _scheduledDays; i++) {
-      await _plugin.cancel(_baseNotificationId + i);
+      // FIXED: Using named parameter 'id'
+      await _plugin.cancel(id: _baseNotificationId + i);
     }
   }
 
   Future<void> _configureLocalTimeZone() async {
     tz.initializeTimeZones();
     try {
-      final timezone = await FlutterTimezone.getLocalTimezone();
-      final location = tz.getLocation(timezone);
+      // FIXED: Handling the TimezoneInfo object correctly
+      final timezoneInfo = await FlutterTimezone.getLocalTimezone().timeout(
+        const Duration(seconds: 3),
+      );
+      final location = tz.getLocation(timezoneInfo.identifier);
       tz.setLocalLocation(location);
     } catch (_) {
       tz.setLocalLocation(tz.getLocation('UTC'));

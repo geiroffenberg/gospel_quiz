@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'bible_loader.dart';
 import 'notification_service.dart';
+//import 'widgets/ad_banner.dart';
 
 class QuizApp extends StatelessWidget {
   const QuizApp({super.key});
@@ -235,7 +236,8 @@ class _QuizHomePageState extends State<QuizHomePage> {
       _bookChapterVerses = fullBookChapterVerses;
     });
 
-    await _syncVerseNotifications();
+    // Schedule notifications asynchronously so startup/UI isn't blocked.
+    Future.microtask(() => _syncVerseNotifications());
     _nextVerse();
   }
 
@@ -373,6 +375,13 @@ class _QuizHomePageState extends State<QuizHomePage> {
         child: _round == 0
             ? const Center(child: CircularProgressIndicator())
             : _buildGameScreen(),
+      ),
+      bottomNavigationBar: const SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          //child: Center(child: AdBanner()),
+        ),
       ),
     );
   }
