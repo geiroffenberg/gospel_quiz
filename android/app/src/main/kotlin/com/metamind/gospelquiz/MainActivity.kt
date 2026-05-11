@@ -1,4 +1,4 @@
-package com.metamind.gospel_quiz
+package com.metamind.gospelquiz
 
 import io.flutter.embedding.android.FlutterActivity
 

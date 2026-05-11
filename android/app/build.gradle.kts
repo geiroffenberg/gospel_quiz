@@ -3,8 +3,17 @@ import java.util.Properties
 import java.io.FileInputStream
 
 val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("key.properties")
-if (keystorePropertiesFile.exists()) {
+// Look for key.properties in common locations: android/, repo root, or android/key.properties
+val androidRoot = rootProject.projectDir
+val repoRoot = androidRoot.parentFile
+val keystoreCandidates = listOf(
+    File(androidRoot, "key.properties"),
+    File(androidRoot, "../key.properties"),
+    File(repoRoot, "key.properties"),
+    File(androidRoot, "android/key.properties")
+)
+val keystorePropertiesFile = keystoreCandidates.firstOrNull { it.exists() }
+if (keystorePropertiesFile != null) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
@@ -18,7 +27,7 @@ plugins {
 }
 
 android {
-    namespace = "com.metamind.gospel_quiz"
+    namespace = "com.metamind.gospelquiz"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -34,7 +43,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.metamind.gospel_quiz"
+        applicationId = "com.metamind.gospelquiz"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -51,7 +60,21 @@ android {
             
             val stFile = keystoreProperties["storeFile"] as String?
             if (stFile != null) {
-                storeFile = file(stFile)
+                val candidate = file(stFile)
+                if (candidate.exists()) {
+                    storeFile = candidate
+                } else {
+                    val repoCandidate = File(rootProject.projectDir.parentFile, stFile)
+                    if (repoCandidate.exists()) {
+                        storeFile = repoCandidate
+                    } else {
+                        // fallback: try path relative to android root
+                        val androidRootCandidate = File(rootProject.projectDir, stFile)
+                        if (androidRootCandidate.exists()) {
+                            storeFile = androidRootCandidate
+                        }
+                    }
+                }
             }
         }
     }
